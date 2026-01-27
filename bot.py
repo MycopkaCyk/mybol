@@ -14,9 +14,8 @@ try:
     from telegram.ext import Application
     application = Application.builder().token(BOT_TOKEN).build()
     print("   Успешно! Application создан.")
-
     # === ДОБАВЬТЕ ЭТОТ БЛОК СРАЗУ ПОСЛЕ СОЗДАНИЯ APPLICATION ===
-    try:
+try:
         print("3. Регистрирую обработчики команд...")
         # ВАШ КОД РЕГИСТРАЦИИ ОБРАБОТЧИКОВ ДОЛЖЕН БЫТЬ ЗДЕСЬ
         # Например:
@@ -36,7 +35,7 @@ try:
         print(f"   ❌ ОШИБКА ПРИ РЕГИСТРАЦИИ ОБРАБОТЧИКОВ: {e}")
         raise e
 
-    try:
+try:
         print("4. Определяю режим запуска (Webhook vs Polling)...")
         port = int(os.environ.get('PORT', 0))
         webhook_url = os.environ.get('RAILWAY_STATIC_URL', '')
@@ -45,7 +44,6 @@ try:
         print(f"   ❌ ОШИБКА ПРИ ПРОВЕРКЕ ПЕРЕМЕННЫХ: {e}")
         raise e
     # === КОНЕЦ ОТЛАДОЧНОГО БЛОКА ===
-# === КОНЕЦ ОТЛАДОЧНОГО БЛОКА ===
 
 # Далее идёт ваш существующий код (регистрация обработчиков и т.д.)
 import logging
