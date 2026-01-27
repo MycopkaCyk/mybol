@@ -1,49 +1,49 @@
 print("=== BOT.PY НАЧИНАЕТ РАБОТУ ===")
 
-# === ДОБАВЬТЕ ЭТОТ ОТЛАДОЧНЫЙ БЛОК ===
+# === ОТЛАДОЧНЫЙ БЛОК ===
 try:
     print("1. Пытаюсь импортировать из config...")
     from config import BOT_TOKEN, FEEDBACK_GROUP_ID, ADMIN_ID
     print(f"   Успешно! BOT_TOKEN начинается с: {BOT_TOKEN[:10]}...")
 except Exception as e:
     print(f"   ❌ ОШИБКА ПРИ ИМПОРТЕ CONFIG: {e}")
-    raise e  # Прерываем выполнение, чтобы увидеть ошибку
+    raise e
 
 try:
     print("2. Пытаюсь создать Application...")
     from telegram.ext import Application
     application = Application.builder().token(BOT_TOKEN).build()
     print("   Успешно! Application создан.")
-    # === ДОБАВЬТЕ ЭТОТ БЛОК СРАЗУ ПОСЛЕ СОЗДАНИЯ APPLICATION ===
-try:
-        print("3. Регистрирую обработчики команд...")
-        # ВАШ КОД РЕГИСТРАЦИИ ОБРАБОТЧИКОВ ДОЛЖЕН БЫТЬ ЗДЕСЬ
-        # Например:
-        from telegram.ext import CommandHandler
-        from keyboards import get_main_menu_keyboard
-        from messages import WELCOME_MESSAGE
-
-
-        async def start_command(update, context):
-            await update.message.reply_text(WELCOME_MESSAGE, reply_markup=get_main_menu_keyboard())
-
-
-        application.add_handler(CommandHandler("start", start_command))
-        # ... добавьте сюда ВСЕ остальные ваши application.add_handler ...
-        print("   Успешно! Все обработчики зарегистрированы.")
-    except Exception as e:
-        print(f"   ❌ ОШИБКА ПРИ РЕГИСТРАЦИИ ОБРАБОТЧИКОВ: {e}")
-        raise e
+except Exception as e:
+    print(f"   ❌ ОШИБКА ПРИ СОЗДАНИИ APPLICATION: {e}")
+    raise e
 
 try:
-        print("4. Определяю режим запуска (Webhook vs Polling)...")
-        port = int(os.environ.get('PORT', 0))
-        webhook_url = os.environ.get('RAILWAY_STATIC_URL', '')
-        print(f"   PORT={port}, RAILWAY_STATIC_URL={webhook_url}")
-    except Exception as e:
-        print(f"   ❌ ОШИБКА ПРИ ПРОВЕРКЕ ПЕРЕМЕННЫХ: {e}")
-        raise e
-    # === КОНЕЦ ОТЛАДОЧНОГО БЛОКА ===
+    print("3. Регистрирую обработчики команд...")
+    from telegram.ext import CommandHandler
+    from keyboards import get_main_menu_keyboard
+    from messages import WELCOME_MESSAGE
+
+    async def start_command(update, context):
+        await update.message.reply_text(WELCOME_MESSAGE, reply_markup=get_main_menu_keyboard())
+
+    application.add_handler(CommandHandler("start", start_command))
+    # ... добавьте сюда ВСЕ остальные ваши application.add_handler ...
+    print("   Успешно! Все обработчики зарегистрированы.")
+except Exception as e:
+    print(f"   ❌ ОШИБКА ПРИ РЕГИСТРАЦИИ ОБРАБОТЧИКОВ: {e}")
+    raise e
+
+try:
+    print("4. Определяю режим запуска (Webhook vs Polling)...")
+    import os
+    port = int(os.environ.get('PORT', 0))
+    webhook_url = os.environ.get('RAILWAY_STATIC_URL', '')
+    print(f"   PORT={port}, RAILWAY_STATIC_URL={webhook_url}")
+except Exception as e:
+    print(f"   ❌ ОШИБКА ПРИ ПРОВЕРКЕ ПЕРЕМЕННЫХ: {e}")
+    raise e
+# === КОНЕЦ ОТЛАДОЧНОГО БЛОКА ===
 
 # Далее идёт ваш существующий код (регистрация обработчиков и т.д.)
 import logging
