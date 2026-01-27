@@ -1,3 +1,4 @@
+print("=== BOT.PY НАЧИНАЕТ РАБОТУ ===")
 import logging
 import os
 from datetime import datetime
