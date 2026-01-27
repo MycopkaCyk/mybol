@@ -1,4 +1,25 @@
 print("=== BOT.PY НАЧИНАЕТ РАБОТУ ===")
+
+# === ДОБАВЬТЕ ЭТОТ ОТЛАДОЧНЫЙ БЛОК ===
+try:
+    print("1. Пытаюсь импортировать из config...")
+    from config import BOT_TOKEN, FEEDBACK_GROUP_ID, ADMIN_ID
+    print(f"   Успешно! BOT_TOKEN начинается с: {BOT_TOKEN[:10]}...")
+except Exception as e:
+    print(f"   ❌ ОШИБКА ПРИ ИМПОРТЕ CONFIG: {e}")
+    raise e  # Прерываем выполнение, чтобы увидеть ошибку
+
+try:
+    print("2. Пытаюсь создать Application...")
+    from telegram.ext import Application
+    application = Application.builder().token(BOT_TOKEN).build()
+    print("   Успешно! Application создан.")
+except Exception as e:
+    print(f"   ❌ ОШИБКА ПРИ СОЗДАНИИ APPLICATION: {e}")
+    raise e
+# === КОНЕЦ ОТЛАДОЧНОГО БЛОКА ===
+
+# Далее идёт ваш существующий код (регистрация обработчиков и т.д.)
 import logging
 import os
 from datetime import datetime
