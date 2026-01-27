@@ -23,11 +23,6 @@ try:
         from telegram.ext import CommandHandler
         from keyboards import get_main_menu_keyboard
         from messages import WELCOME_MESSAGE
-        from datetime import datetime
-        from telegram import Update
-        from telegram.ext import (
-            Application, CommandHandler, CallbackQueryHandler,
-            MessageHandler, filters, ContextTypes
 
 
         async def start_command(update, context):
