@@ -42,7 +42,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    if 'step' in context.user_
+    if 'step' in context.user_data:
         context.user_data.clear()
 
     if text == "📊 Оставить отзыв":
