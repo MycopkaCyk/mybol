@@ -9,7 +9,7 @@ from telegram.ext import (
     MessageHandler, filters, ContextTypes
 )
 
-# === Конфигурация ===
+# === Импорты конфигурации и модулей ===
 from config import BOT_TOKEN, FEEDBACK_GROUP_ID, ADMIN_ID
 from keyboards import (
     get_feedback_type_keyboard, get_usefulness_rating_keyboard,
@@ -23,11 +23,10 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# === Создаём Application один раз при старте ===
-print("=== ИНИЦИАЛИЗАЦИЯ TELEGRAM APPLICATION ===")
+# === Создаём Application один раз ===
 application = Application.builder().token(BOT_TOKEN).build()
 
-# === Обработчики (без изменений) ===
+# ========== ВСТАВЛЯЕМ ВСЕ ОБРАБОТЧИКИ ==========
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.error(f"Ошибка: {context.error}")
     if update and update.effective_message:
@@ -211,7 +210,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += f"   ⏰ {created_at}\n\n"
     await update.message.reply_text(text, parse_mode='Markdown')
 
-# === Регистрация обработчиков ===
+# === Регистрация всех обработчиков ===
 application.add_handler(CommandHandler("start", start_command))
 application.add_handler(CommandHandler("feedback", feedback_command))
 application.add_handler(CommandHandler("skip", skip_command))
@@ -221,18 +220,28 @@ application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, 
 application.add_handler(CallbackQueryHandler(callback_handler))
 application.add_error_handler(error_handler)
 
-# === НАСТРОЙКА WEBHOOK ДЛЯ RAILWAY ===
-print("=== НАСТРАИВАЕМ WEBHOOK ДЛЯ RAILWAY ===")
-raw_url = os.environ.get('RAILWAY_STATIC_URL', '').strip()
-if raw_url:
-    parsed = urlparse(raw_url)
-    webhook_url = raw_url if parsed.scheme else f"https://{raw_url}"
-    print(f"✅ Устанавливаем вебхук: {webhook_url}/{BOT_TOKEN}")
-    # Устанавливаем вебхук один раз при старте
-    application.bot.set_webhook(url=f"{webhook_url}/{BOT_TOKEN}")
-else:
-    print("⚠️ RAILWAY_STATIC_URL не задан. Webhook не установлен.")
+# === УСТАНОВКА WEBHOOK И ЭКСПОРТ ASGI-ПРИЛОЖЕНИЯ ===
+async def _setup_webhook():
+    """Устанавливает вебхук при старте."""
+    raw_url = os.environ.get('RAILWAY_STATIC_URL', '').strip()
+    if not raw_url:
+        print("⚠️ RAILWAY_STATIC_URL не задан. Webhook не будет установлен.")
+        return
 
-# === ЭКСПОРТИРУЕМ ASGI-ПРИЛОЖЕНИЕ ДЛЯ RAILWAY ===
+    # Добавляем https:// если отсутствует
+    if not raw_url.startswith(('http://', 'https://')):
+        webhook_url = f"https://{raw_url}"
+    else:
+        webhook_url = raw_url
+
+    full_url = f"{webhook_url.rstrip('/')}/{BOT_TOKEN}"
+    print(f"✅ Устанавливаем вебхук: {full_url}")
+    await application.bot.set_webhook(url=full_url)
+    print("✅ Вебхук успешно установлен!")
+
+# Запускаем установку вебхука один раз
+application.job_queue.run_once(lambda _: None, 0, callback=lambda _: asyncio.create_task(_setup_webhook()))
+
+# Экспортируем ASGI-приложение для Railway
 app = application.webhook_app
 print("✅ ASGI-приложение 'app' готово для Railway!")
