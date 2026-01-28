@@ -24,7 +24,7 @@ logging.basicConfig(
 )
 
 
-# ========== ВСТАВЛЕНЫ ВСЕ ОБРАБОТЧИКИ (полностью) ==========
+# ========== ОБРАБОТЧИКИ ==========
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.error(f"Ошибка: {context.error}")
     if update and update.effective_message:
@@ -44,11 +44,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    if 'step' in context.user_
+    # ИСПРАВЛЕНО: было context.user_ → стало context.user_data
+    if 'step' in context.user_data:
         context.user_data.clear()
 
     if text == "📊 Оставить отзыв":
-        if 'feedback_msg_id' in context.user_
+        # ИСПРАВЛЕНО: было context.user_ → стало context.user_data
+        if 'feedback_msg_id' in context.user_data:
             try:
                 await context.bot.delete_message(
                     chat_id=update.effective_chat.id,
@@ -235,7 +237,6 @@ application.add_error_handler(error_handler)
 
 # === Установка вебхука и запуск сервера ===
 async def main():
-    # Устанавливаем вебхук
     raw_url = os.environ.get('RAILWAY_STATIC_URL', '').strip()
     if not raw_url:
         raise ValueError("❌ RAILWAY_STATIC_URL не задан!")
@@ -250,11 +251,9 @@ async def main():
     await application.bot.set_webhook(url=full_webhook_url)
     print("✅ Вебхук успешно установлен!")
 
-    # Запускаем сервер на порту $PORT
     port = int(os.environ.get('PORT', '8080'))
     print(f"🚀 Запуск веб-сервера на порту {port}...")
 
-    # Этот вызов блокирует, но корректно работает на Railway
     await application.updater.start_webhook(
         listen="0.0.0.0",
         port=port,
@@ -266,7 +265,7 @@ async def main():
 
 # === ЗАПУСК ===
 if __name__ == '__main__':
-    print("=== ЗАПУСК БОТА ДЛЯ RAILWAY (v22.6, без webhook_app) ===")
+    print("=== ЗАПУСК БОТА ДЛЯ RAILWAY ===")
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
