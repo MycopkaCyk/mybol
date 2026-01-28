@@ -42,11 +42,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    if 'step' in context.user_data
+    if 'step' in context.user_data:
         context.user_data.clear()
 
     if text == "📊 Оставить отзыв":
-        if 'feedback_msg_id' in context.user_data
+        if 'feedback_msg_id' in context.user_data:
             try:
                 await context.bot.delete_message(
                     chat_id=update.effective_chat.id,
