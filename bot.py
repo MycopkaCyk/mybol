@@ -1,72 +1,45 @@
-print("=== BOT.PY НАЧИНАЕТ РАБОТУ ===")
-
-# === ОТЛАДОЧНЫЙ БЛОК ===
-try:
-    print("1. Пытаюсь импортировать из config...")
-    from config import BOT_TOKEN, FEEDBACK_GROUP_ID, ADMIN_ID
-    print(f"   Успешно! BOT_TOKEN начинается с: {BOT_TOKEN[:10]}...")
-except Exception as e:
-    print(f"   ❌ ОШИБКА ПРИ ИМПОРТЕ CONFIG: {e}")
-    raise e
-
-try:
-    print("2. Пытаюсь создать Application...")
-    from telegram.ext import Application
-    application = Application.builder().token(BOT_TOKEN).build()
-    print("   Успешно! Application создан.")
-except Exception as e:
-    print(f"   ❌ ОШИБКА ПРИ СОЗДАНИИ APPLICATION: {e}")
-    raise e
-
-try:
-    print("3. Регистрирую обработчики команд...")
-    from telegram.ext import CommandHandler
-    from keyboards import get_main_menu_keyboard
-    from messages import WELCOME_MESSAGE
-
-    async def start_command(update, context):
-        await update.message.reply_text(WELCOME_MESSAGE, reply_markup=get_main_menu_keyboard())
-
-    application.add_handler(CommandHandler("start", start_command))
-    # ... добавьте сюда ВСЕ остальные ваши application.add_handler ...
-    print("   Успешно! Все обработчики зарегистрированы.")
-except Exception as e:
-    print(f"   ❌ ОШИБКА ПРИ РЕГИСТРАЦИИ ОБРАБОТЧИКОВ: {e}")
-    raise e
-
-try:
-    print("4. Определяю режим запуска (Webhook vs Polling)...")
-    import os
-    port = int(os.environ.get('PORT', 0))
-    webhook_url = os.environ.get('RAILWAY_STATIC_URL', '')
-    print(f"   PORT={port}, RAILWAY_STATIC_URL={webhook_url}")
-except Exception as e:
-    print(f"   ❌ ОШИБКА ПРИ ПРОВЕРКЕ ПЕРЕМЕННЫХ: {e}")
-    raise e
-# === КОНЕЦ ОТЛАДОЧНОГО БЛОКА ===
-
-# Далее идёт ваш существующий код (регистрация обработчиков и т.д.)
-import logging
 import os
+import logging
 from datetime import datetime
+from urllib.parse import urlparse, urljoin
+
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
     MessageHandler, filters, ContextTypes
 )
 
-from config import BOT_TOKEN, FEEDBACK_GROUP_ID, ADMIN_ID
+# === ОТЛАДОЧНЫЙ БЛОК: Инициализация ===
+print("=== BOT.PY НАЧИНАЕТ РАБОТУ ===")
+
+try:
+    print("1. Пытаюсь импортировать из config...")
+    from config import BOT_TOKEN, FEEDBACK_GROUP_ID, ADMIN_ID
+    print(f"   Успешно! BOT_TOKEN начинается с: {BOT_TOKEN[:10]}...")
+except Exception as e:
+    print(f"   ❌ ОШИБКА ПРИ ИМПОРТЕ CONFIG: {e}")
+    raise
+
+try:
+    print("2. Пытаюсь создать Application...")
+    application = Application.builder().token(BOT_TOKEN).build()
+    print("   Успешно! Application создан.")
+except Exception as e:
+    print(f"   ❌ ОШИБКА ПРИ СОЗДАНИИ APPLICATION: {e}")
+    raise
+
+# Импорты после создания application
 from keyboards import (
     get_feedback_type_keyboard, get_usefulness_rating_keyboard,
     get_experience_rating_keyboard, get_main_menu_keyboard
 )
 from database import db
+from messages import WELCOME_MESSAGE
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
-
 
 # ========== ОБРАБОТКА ОШИБОК ==========
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -80,18 +53,14 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
 
-
 # ========== КОМАНДА /START ==========
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Приветствие и показ главного меню"""
     context.user_data.clear()
-
     await update.message.reply_text(
-        "👋 Привет! Я бот для сбора обратной связи о приложении.\n\n"
-        "Выбери действие из меню ниже:",
+        WELCOME_MESSAGE,
         reply_markup=get_main_menu_keyboard()
     )
-
 
 # ========== ОБРАБОТКА ГЛАВНОГО МЕНЮ ==========
 async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -118,7 +87,6 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Выбери тип отзыва:",
             reply_markup=get_feedback_type_keyboard()
         )
-
         context.user_data['feedback_msg_id'] = msg.message_id
         context.user_data['step'] = 'type'
 
@@ -127,7 +95,7 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📱 Наше приложение:\n"
             "• Версия: 1.0.0\n"
             "• Последнее обновление: январь 2026\n"
-            "• Разработано с ❤️ для пользователей",
+            "• Разработано с заботой для пользователей ❤️",
             reply_markup=get_main_menu_keyboard()
         )
 
@@ -151,33 +119,22 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=get_main_menu_keyboard()
         )
 
-
 # ========== ОБРАБОТЧИК ИНЛАЙН-КНОПОК ==========
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик всех инлайн-кнопок"""
     query = update.callback_query
     await query.answer()
-
-    # Сохраняем ID сообщения
     context.user_data['feedback_msg_id'] = query.message.message_id
 
     # 1. Выбор типа фидбека
     if query.data.startswith('type_'):
         feedback_type = query.data.replace("type_", "")
         context.user_data['feedback_type'] = feedback_type
-
-        # Определяем русское название для отображения
-        type_names = {
-            'bug': 'ошибку',
-            'idea': 'идею',
-            'general': 'общий отзыв'
-        }
+        type_names = {'bug': 'ошибку', 'idea': 'идею', 'general': 'общий отзыв'}
         type_name = type_names.get(feedback_type, 'отзыв')
-
-        # Редактируем сообщение, запрашиваем комментарий
         await query.edit_message_text(
             text=f"Вы выбрали: сообщить {type_name}\n\nТеперь напишите ваш отзыв текстом:",
-            reply_markup=None  # Убираем инлайн-кнопки
+            reply_markup=None
         )
         context.user_data['step'] = 'comment'
 
@@ -185,8 +142,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data.startswith('rating_usefulness_'):
         rating_usefulness = query.data.replace("rating_usefulness_", "")
         context.user_data['rating_usefulness'] = rating_usefulness
-
-        # Определяем текст для оценки полезности
         rating_texts = {
             '1': '😠 Очень не полезно (1/5)',
             '2': '😕 Не очень полезно (2/5)',
@@ -195,8 +150,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             '5': '😊 Очень полезно (5/5)'
         }
         rating_text = rating_texts.get(rating_usefulness, f'{rating_usefulness}/5')
-
-        # Редактируем сообщение, запрашиваем вторую оценку
         await query.edit_message_text(
             text=f"✅ Оценка полезности: {rating_text}\n\nТеперь оцените пользовательский опыт (удобство, интерфейс):",
             reply_markup=get_experience_rating_keyboard()
@@ -206,27 +159,18 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 3. Обработка оценки опыта
     elif query.data.startswith('rating_experience_'):
         rating_experience = query.data.replace("rating_experience_", "")
-
-        # Сохраняем данные
         context.user_data['rating_experience'] = rating_experience
         user = update.effective_user
-
-        # Получаем все данные
         feedback_type = context.user_data.get('feedback_type', 'general')
         comment = context.user_data.get('comment', '')
         rating_usefulness = context.user_data.get('rating_usefulness', '')
 
-        # Проверяем наличие всех данных
         if not comment:
-            # Удаляем инлайн-кнопки, показываем ошибку
-            await query.edit_message_text(
-                text="❌ Ошибка: комментарий не найден. Начните заново с /start"
-            )
+            await query.edit_message_text(text="❌ Ошибка: комментарий не найден. Начните заново с /start")
             context.user_data.clear()
             return
 
         try:
-            # Сохраняем в базу
             db.save_feedback(
                 user_id=user.id,
                 user_name=user.full_name,
@@ -236,9 +180,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 feedback_type=feedback_type
             )
 
-            # Формируем сообщение для группы
             timestamp = datetime.now().strftime("%d.%m.%Y %H:%M")
-
             type_display = {
                 'bug': '🐞 Ошибка',
                 'idea': '💡 Идея',
@@ -254,19 +196,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📝 Комментарий: {comment}
 ⏰ Время: {timestamp}"""
 
-            # Отправляем в группу
-            await context.bot.send_message(
-                chat_id=FEEDBACK_GROUP_ID,
-                text=group_message
-            )
-
-            # Удаляем инлайн-кнопки из сообщения (редактируем без кнопок)
+            await context.bot.send_message(chat_id=FEEDBACK_GROUP_ID, text=group_message)
             await query.edit_message_text(
                 text="✅ Спасибо! Ваш отзыв отправлен разработчику.",
-                reply_markup=None  # Важно: убираем инлайн-кнопки!
+                reply_markup=None
             )
-
-            # Отправляем главное меню в отдельном сообщении
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
                 text="Выберите следующее действие:",
@@ -275,55 +209,41 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         except Exception as e:
             logging.error(f"Ошибка при сохранении: {e}")
-
-            # Убираем инлайн-кнопки, показываем ошибку
             await query.edit_message_text(
                 text="❌ Произошла ошибка при сохранении отзыва. Попробуйте позже.",
-                reply_markup=None  # Убираем кнопки
+                reply_markup=None
             )
-
-            # Отправляем главное меню
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
                 text="Выберите действие:",
                 reply_markup=get_main_menu_keyboard()
             )
 
-        # Очищаем данные
         context.user_data.clear()
-
 
 # ========== ОБРАБОТКА ТЕКСТОВЫХ КОММЕНТАРИЕВ ==========
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка текстовых сообщений (комментариев)"""
-    # Если мы на шаге 'comment' (после выбора типа фидбека)
     if context.user_data.get('step') == 'comment':
         comment = update.message.text
         context.user_data['comment'] = comment
-
-        # Отправляем новое сообщение с кнопками для оценки полезности
         msg = await update.message.reply_text(
             "✅ Комментарий сохранен!\n\n"
             "Теперь оцените полезность приложения (насколько оно решает ваши задачи):",
             reply_markup=get_usefulness_rating_keyboard()
         )
-
-        # Сохраняем ID нового сообщения
         context.user_data['feedback_msg_id'] = msg.message_id
         context.user_data['step'] = 'rating_usefulness'
 
-
 # ========== КОМАНДА /SKIP ==========
 async def skip_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Пропуск комментария (если пользователь не хочет писать текст)"""
+    """Пропуск комментария"""
     if context.user_data.get('step') == 'comment':
         context.user_data['comment'] = 'Без комментария'
-
         msg = await update.message.reply_text(
             "Теперь оцените полезность приложения (насколько оно решает ваши задачи):",
             reply_markup=get_usefulness_rating_keyboard()
         )
-
         context.user_data['feedback_msg_id'] = msg.message_id
         context.user_data['step'] = 'rating_usefulness'
     else:
@@ -332,7 +252,6 @@ async def skip_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Нажмите '📊 Оставить отзыв'",
             reply_markup=get_main_menu_keyboard()
         )
-
 
 # ========== КОМАНДА /FEEDBACK ==========
 async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -344,7 +263,6 @@ async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     context.user_data['feedback_msg_id'] = msg.message_id
     context.user_data['step'] = 'type'
-
 
 # ========== КОМАНДА /STATS ==========
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -359,8 +277,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     text = "📈 **Последние 10 отзывов:**\n\n"
-    for i, (user_name, rating_usefulness, rating_experience, comment, feedback_type, created_at) in enumerate(recent,
-                                                                                                              1):
+    for i, (user_name, rating_usefulness, rating_experience, comment, feedback_type, created_at) in enumerate(recent, 1):
         text += f"{i}. **{user_name}**\n"
         text += f"   Тип: {feedback_type}\n"
         text += f"   Полезность: {rating_usefulness}/5 | Опыт: {rating_experience}/5\n"
@@ -373,55 +290,53 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(text, parse_mode='Markdown')
 
+# ========== РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ ==========
+print("3. Регистрирую обработчики команд...")
+application.add_handler(CommandHandler("start", start_command))
+application.add_handler(CommandHandler("feedback", feedback_command))
+application.add_handler(CommandHandler("skip", skip_command))
+application.add_handler(CommandHandler("stats", stats_command))
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_main_menu))
+application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, text_handler))
+application.add_handler(CallbackQueryHandler(callback_handler))
+application.add_error_handler(error_handler)
+print("   Успешно! Все обработчики зарегистрированы.")
 
 # ========== ЗАПУСК БОТА ==========
-def main():
-    import os  # Убедитесь, что эта строка есть в начале файла!
-    from telegram.ext import Application
-    # ... остальные ваши импорты (они уже есть, не трогайте) ...
+async def main():
+    print("4. Определяю режим запуска (Webhook vs Polling)...")
+    port = int(os.environ.get('PORT', 0))
+    raw_webhook_url = os.environ.get('RAILWAY_STATIC_URL', '').strip()
+    print(f"   RAW RAILWAY_STATIC_URL='{raw_webhook_url}'")
 
-    async def main():
-        """
-        УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ЗАПУСКА.
-        Работает локально (поллинг) и на сервере Railway (вебхук).
-        """
-        # 1. Инициализация бота (токен теперь безопасно берётся из config.py)
-        from config import BOT_TOKEN, FEEDBACK_GROUP_ID, ADMIN_ID
-        application = Application.builder().token(BOT_TOKEN).build()
+    # === КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Надёжная обработка URL ===
+    if raw_webhook_url:
+        parsed = urlparse(raw_webhook_url)
+        if not parsed.scheme:
+            webhook_url = "https://" + raw_webhook_url
+            print("   🛠️  Протокол не найден. Автоматически добавлен 'https://'.")
+        else:
+            webhook_url = raw_webhook_url
+            print(f"   ✅ Протокол '{parsed.scheme}' найден.")
+        print(f"   FINAL WEBHOOK URL='{webhook_url}'")
+    else:
+        webhook_url = ""
 
-        # === ВАША СУЩЕСТВУЮЩАЯ ЛОГИКА НАЧИНАЕТСЯ ЗДЕСЬ ===
-        # 2. ЗДЕСЬ ДОЛЖЕН БЫТЬ ВЕСЬ ВАШ КОД ПО РЕГИСТРАЦИИ ОБРАБОТЧИКОВ
-        # Например:
-        from keyboards import get_main_menu_keyboard
-        from messages import WELCOME_MESSAGE
+    if port and webhook_url:
+        print(f"🚀 Запуск в режиме WEBHOOK на порту {port}")
+        webhook_endpoint = urljoin(webhook_url.rstrip("/"), BOT_TOKEN)
+        print(f"   🔗 Финальный URL для установки вебхука: {webhook_endpoint}")
+        await application.bot.setWebhook(webhook_endpoint)
+        await application.run_webhook(
+            listen="0.0.0.0",
+            port=port,
+            url_path=BOT_TOKEN,
+            webhook_url=webhook_endpoint
+        )
+    else:
+        print("💻 Запуск в режиме POLLING (локальная разработка)")
+        await application.run_polling()
 
-        async def start_command(update, context):
-            await update.message.reply_text(WELCOME_MESSAGE, reply_markup=get_main_menu_keyboard())
-
-        application.add_handler(CommandHandler("start", start_command))
-
-        # ... ВСТАВЬТЕ СЮДА ВСЕ ОСТАЛЬНЫЕ ВАШИ application.add_handler ...
-        # Не удаляйте и не меняйте вашу логику! Перенесите её сюда.
-        # === ВАША СУЩЕСТВУЮЩАЯ ЛОГИКА ЗАКАНЧИВАЕТСЯ ЗДЕСЬ ===
-
-        # 3. УМНЫЙ ЗАПУСК: Проверяем, на сервере мы или локально
-        port = int(os.environ.get('PORT', 0))
-        webhook_url = os.environ.get('RAILWAY_STATIC_URL', '')
-
-        if port and webhook_url:  # Если обе переменные есть -> мы на Railway, используем ВЕБХУК
-            print(f"🚀 Запуск в режиме WEBHOOK на порту {port}")
-            await application.bot.setWebhook(f"{webhook_url}/{BOT_TOKEN}")
-            await application.run_webhook(
-                listen="0.0.0.0",
-                port=port,
-                url_path=BOT_TOKEN,
-                webhook_url=f"{webhook_url}/{BOT_TOKEN}"
-            )
-        else:  # Если переменных нет -> мы локально, используем ПОЛЛИНГ
-            print("💻 Запуск в режиме POLLING (локальная разработка)")
-            await application.run_polling()
-
-    if __name__ == '__main__':
-        # Этот блок запускает асинхронную функцию main()
-        import asyncio
-        asyncio.run(main())
+if __name__ == '__main__':
+    import asyncio
+    asyncio.run(main())
