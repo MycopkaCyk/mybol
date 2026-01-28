@@ -42,11 +42,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    if 'step' in context.user_data:
+    if 'step' in context.user_data
         context.user_data.clear()
 
     if text == "📊 Оставить отзыв":
-        if 'feedback_msg_id' in context.user_data:
+        if 'feedback_msg_id' in context.user_data
             try:
                 await context.bot.delete_message(
                     chat_id=update.effective_chat.id,
@@ -211,7 +211,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # === СОЗДАНИЕ APPLICATION ===
 application = Application.builder().token(BOT_TOKEN).build()
 
-# === РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ (явно и правильно) ===
+# === РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ ===
 application.add_handler(CommandHandler("start", start_command))
 application.add_handler(CommandHandler("feedback", feedback_command))
 application.add_handler(CommandHandler("skip", skip_command))
@@ -240,5 +240,6 @@ try:
 except RuntimeError:
     asyncio.run(_set_webhook())
 
-# === ЭКСПОРТ ASGI-ПРИЛОЖЕНИЯ ДЛЯ RAILWAY ===
-app = application.webhook_app
+# === ЭКСПОРТ ASGI-ПРИЛОЖЕНИЯ (ПРАВИЛЬНЫЙ СПОСОБ ДЛЯ v22.6) ===
+app = application.updater.webhook_app
+print("✅ ASGI-приложение готово для Railway!")
