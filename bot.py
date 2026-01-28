@@ -46,7 +46,7 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.clear()
 
     if text == "📊 Оставить отзыв":
-        if 'feedback_msg_id' in context.user_
+        if 'feedback_msg_id' in context.user_data:
             try:
                 await context.bot.delete_message(
                     chat_id=update.effective_chat.id,
