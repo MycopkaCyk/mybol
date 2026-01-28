@@ -337,6 +337,22 @@ async def main():
         print("💻 Запуск в режиме POLLING (локальная разработка)")
         await application.run_polling()
 
-if __name__ == '__main__':
-    import asyncio
-    asyncio.run(main())
+# === ЗАПУСК ДЛЯ ОБЛАЧНЫХ ПЛАТФОРМ (Railway, Render и др.) ===
+import asyncio
+
+def main_wrapper():
+    """Обёртка для запуска в средах с уже запущенным event loop'ом."""
+    try:
+        # Попытка получить текущий event loop
+        loop = asyncio.get_running_loop()
+        # Если мы здесь — loop уже запущен (например, в Railway)
+        # Просто создаём задачу и "ждём" её завершения через run_until_complete
+        # Но так как loop уже работает, мы просто планируем задачу
+        task = loop.create_task(main())
+        # В некоторых средах этого достаточно
+    except RuntimeError:
+        # Если loop ещё не запущен (локально) — запускаем как обычно
+        asyncio.run(main())
+
+# Запускаем обёртку
+main_wrapper()
