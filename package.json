@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node --no-deprecation local.js",
+    "start": "node --no-deprecation server.js",
     "dev": "node --no-deprecation local.js"
   },
   "dependencies": {
