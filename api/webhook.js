@@ -159,16 +159,14 @@ bot.action(/^usable:(\d)$/, async (ctx) => {
     rating_usability: usability,
   };
 
-  const { error } = await supabase.from("mYfeedbek").insert(payload);
+  const { data, error } = await supabase.from("mYfeedbek").insert(payload).select();
 
   if (error) {
-    console.error("SUPABASE INSERT ERROR:", {
-      message: error.message,
-      code: error.code,
-    });
+    console.error("SUPABASE INSERT ERROR:", error.message, error.code, error.details);
     await sendTypingThen(ctx, TEXT.saveError(error.code));
     return;
   }
+  if (data) console.log("Supabase: запись сохранена, id:", data[0]?.id);
 
   resetState(userId);
   const finalText =
