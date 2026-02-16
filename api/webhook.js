@@ -82,7 +82,8 @@ function resetState(userId) {
 
 bot.start(async (ctx) => {
   resetState(ctx.from.id);
-  await sendTypingThen(ctx, TEXT.greeting, kbNext());
+  const name = [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(" ") || "друг";
+  await sendTypingThen(ctx, TEXT.greeting(name), kbNext());
 });
 
 const deleteAfterTyping = (ctx) =>
