@@ -82,7 +82,7 @@ function resetState(userId) {
 
 bot.start(async (ctx) => {
   resetState(ctx.from.id);
-  const name = [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(" ") || "друг";
+  const name = ctx.from.first_name || "друг";
   await sendTypingThen(ctx, TEXT.greeting(name), kbNext());
 });
 
