@@ -28,6 +28,10 @@ function kbRating(prefix) {
   ]);
 }
 
+function kbRestart() {
+  return Markup.inlineKeyboard([[Markup.button.callback("Начать заново", "restart")]]);
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -176,10 +180,17 @@ bot.action(/^usable:(\d)$/, async (ctx) => {
   await sendTypingThen(
     ctx,
     finalText,
-    { reply_markup: { inline_keyboard: [] } },
+    kbRestart(),
     "HTML",
     deleteAfterTyping(ctx)
   );
+});
+
+bot.action("restart", async (ctx) => {
+  await ctx.answerCbQuery();
+  resetState(ctx.from.id);
+  const name = ctx.from.first_name || "друг";
+  await sendTypingThen(ctx, TEXT.greeting(name), kbNext(), "HTML", deleteAfterTyping(ctx));
 });
 
 export { bot };
